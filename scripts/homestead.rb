@@ -14,6 +14,7 @@ class Homestead
       vb.customize ["modifyvm", :id, "--cpus", settings["cpus"] ||= "1"]
       vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
       vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      vb.customize ["modifyvm", :id, "--ostype", "Ubuntu_64"]
     end
 
     # Configure Port Forwarding To The Box
@@ -36,11 +37,6 @@ class Homestead
         s.inline = "echo \"$1\" > /home/vagrant/.ssh/$2 && chmod 600 /home/vagrant/.ssh/$2"
         s.args = [File.read(File.expand_path(key)), key.split('/').last]
       end
-    end
-
-    # Copy The Bash Aliases
-    config.vm.provision "shell" do |s|
-      s.inline = "cp /vagrant/aliases /home/vagrant/.bash_aliases"
     end
 
     # Register All Of The Configured Shared Folders
@@ -78,9 +74,13 @@ class Homestead
     if settings.has_key?("variables")
       settings["variables"].each do |var|
         config.vm.provision "shell" do |s|
-            s.inline = "echo \"\nenv[$1] = '$2'\" >> /etc/php5/fpm/php-fpm.conf && service php5-fpm restart"
+            s.inline = "echo \"\nenv[$1] = '$2'\" >> /etc/php5/fpm/php-fpm.conf"
             s.args = [var["key"], var["value"]]
         end
+      end
+
+      config.vm.provision "shell" do |s|
+          s.inline = "service php5-fpm restart"
       end
     end
 
