@@ -24,9 +24,16 @@ class Homestead
     config.vm.network "forwarded_port", guest: 5432, host: 54320
     config.vm.network "forwarded_port", guest: 35729, host: 35729
 
+    # Add Custom Ports From Configuration
+    if settings.has_key?("ports")
+      settings["ports"].each do |port|
+        config.vm.network "forwarded_port", guest: port["guest"], host: port["host"], protocol: port["protocol"] ||= "tcp"
+      end
+    end
+
     # Configure The Public Key For SSH Access
     config.vm.provision "shell" do |s|
-      s.inline = "echo $1 | tee -a /home/vagrant/.ssh/authorized_keys"
+      s.inline = "echo $1 | grep -xq \"$1\" /home/vagrant/.ssh/authorized_keys || echo $1 | tee -a /home/vagrant/.ssh/authorized_keys"
       s.args = [File.read(File.expand_path(settings["authorize"]))]
     end
 
@@ -48,10 +55,10 @@ class Homestead
     settings["sites"].each do |site|
       config.vm.provision "shell" do |s|
           if (site.has_key?("hhvm") && site["hhvm"])
-            s.inline = "bash /vagrant/scripts/serve-hhvm.sh $1 $2"
+            s.inline = "bash /vagrant/scripts/serve-hhvm.sh $1 \"$2\""
             s.args = [site["map"], site["to"]]
           else
-            s.inline = "bash /vagrant/scripts/serve.sh $1 $2"
+            s.inline = "bash /vagrant/scripts/serve.sh $1 \"$2\""
             s.args = [site["map"], site["to"]]
           end
       end
@@ -75,6 +82,11 @@ class Homestead
       settings["variables"].each do |var|
         config.vm.provision "shell" do |s|
             s.inline = "echo \"\nenv[$1] = '$2'\" >> /etc/php5/fpm/php-fpm.conf"
+            s.args = [var["key"], var["value"]]
+        end
+
+        config.vm.provision "shell" do |s|
+            s.inline = "echo \"\n#Set Homestead environment variable\nexport $1=$2\" >> /home/vagrant/.profile"
             s.args = [var["key"], var["value"]]
         end
       end
