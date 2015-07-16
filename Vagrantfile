@@ -21,5 +21,5 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 		config.vm.provision "shell", path: afterScriptPath
 	end
 
-	config.vm.boot_timeout = 600
+	config.vm.boot_timeout = 1800
 end
