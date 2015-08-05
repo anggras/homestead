@@ -59,14 +59,14 @@ class Homestead
     # Use Default Port Forwarding Unless Overridden
     default_ports.each do |guest, host|
       unless settings["ports"].any? { |mapping| mapping["guest"] == guest }
-        config.vm.network "forwarded_port", guest: guest, host: host
+        config.vm.network "forwarded_port", guest: guest, host: host, auto_correct: true
       end
     end
 
     # Add Custom Ports From Configuration
     if settings.has_key?("ports")
       settings["ports"].each do |port|
-        config.vm.network "forwarded_port", guest: port["guest"], host: port["host"], protocol: port["protocol"]
+        config.vm.network "forwarded_port", guest: port["guest"], host: port["host"], protocol: port["protocol"], auto_correct: true
       end
     end
 
@@ -103,10 +103,18 @@ class Homestead
     end
 
     # Install All The Configured Nginx Sites
+    config.vm.provision "shell" do |s|
+        s.path = scriptDir + "/clear-nginx.sh"
+    end
+
+
     settings["sites"].each do |site|
       config.vm.provision "shell" do |s|
           if (site.has_key?("hhvm") && site["hhvm"])
             s.path = scriptDir + "/serve-hhvm.sh"
+            s.args = [site["map"], site["to"], site["port"] ||= "80", site["ssl"] ||= "443"]
+          elsif (site.has_key?("type") && (site["type"] == "symfony" || site["type"] == "symfony2"))
+            s.path = scriptDir + "/serve-symfony2.sh"
             s.args = [site["map"], site["to"], site["port"] ||= "80", site["ssl"] ||= "443"]
           else
             s.path = scriptDir + "/serve.sh"
@@ -131,6 +139,10 @@ class Homestead
     end
 
     # Configure All Of The Server Environment Variables
+    config.vm.provision "shell" do |s|
+        s.path = scriptDir + "/clear-variables.sh"
+    end
+
     if settings.has_key?("variables")
       settings["variables"].each do |var|
         config.vm.provision "shell" do |s|
@@ -139,7 +151,7 @@ class Homestead
         end
 
         config.vm.provision "shell" do |s|
-            s.inline = "echo \"\n#Set Homestead environment variable\nexport $1=$2\" >> /home/vagrant/.profile"
+            s.inline = "echo \"\n# Set Homestead Environment Variable\nexport $1=$2\" >> /home/vagrant/.profile"
             s.args = [var["key"], var["value"]]
         end
       end
