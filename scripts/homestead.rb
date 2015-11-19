@@ -110,10 +110,16 @@ class Homestead
         mount_opts = []
 
         if (folder["type"] == "nfs")
-            mount_opts = folder["mount_opts"] ? folder["mount_opts"] : ['actimeo=1']
+            mount_opts = folder["mount_options"] ? folder["mount_options"] : ['actimeo=1']
         end
 
-        config.vm.synced_folder folder["map"], folder["to"], type: folder["type"] ||= nil, mount_options: mount_opts
+        # For b/w compatibility keep separate 'mount_opts', but merge with options
+        options = (folder["options"] || {}).merge({ mount_options: mount_opts })
+
+        # Double-splat (**) operator only works with symbol keys, so convert
+        options.keys.each{|k| options[k.to_sym] = options.delete(k) }
+
+        config.vm.synced_folder folder["map"], folder["to"], type: folder["type"] ||= nil, **options
       end
     end
 
